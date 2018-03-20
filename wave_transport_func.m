@@ -48,7 +48,7 @@ ws = p.ws;
 
 % TODO - Should this be calculated from Hs?
 [uhat,Tbav]=ubspecfun(Hs,Td,h);
-%uhat = 0.5;    % "significant" orbital velocity (ubr = ubot, or sqrt(2) times that?
+% according to A13, Section 4, urms = uhat/sqrt(2)
 ahat = uhat*Td/(2.*pi);
 
 % Current speed and direction
@@ -151,6 +151,7 @@ fprintf(1,'  utrx, utry: %f %f\n', utrx, utry)
 % A13, text after Eqn. 13)
 Rcheck = uhatc/(uhatc+uhatt)
 
+% So far, this matches Taran's Fortran code
 %% Calculate Shields parameters
 % This requires calculating magnitude for crest and trough according
 % to A13 Eqns. 13 - 21.
@@ -203,6 +204,8 @@ padj = soulsby_particle(ds,rhos,rhow,nu);
 wsa = padj.ws;
 % correct for vertical flow using second-order Stokes waves at elevation of
 % ripple crests or sheet-flow layer thickness
+% TOTO: this should be changed from max to appropriate value for ripple or sheet
+% flow
 zws = max(rh,dsf);
 % Following calcs of vertical velocity under crest and trough
 % are poached from santoss_core.m but seems to underestimate for really
@@ -216,6 +219,7 @@ worbc1= pi*Hs*zws/Td/h;
 worbt1= pi*Hs*zws/Td/h;
 worbc2= worbc1*2*(R+R-1);
 worbt2= worbt1*2*(R+R-1);
+% TODO - Should the sign change to crest and trough are different?
 worbc = (1/8)*worbc1*sqrt(64-(-worbc1+sqrt(worbc1^2+32*worbc2^2))^2/(worbc2^2))+...
    worbc2*sin(2*acos((1/8)* (-worbc1+sqrt(worbc1^2+32*worbc2^2))/worbc2));
 worbt = (1/8)*worbt1*sqrt(64-(-worbt1+sqrt(worbt1^2+32*worbt2^2))^2/(worbt2^2))+...
@@ -225,16 +229,20 @@ wst = max(0.,wsa-worbt) % inhibited settling
 %%
 % wave celerity for second-order Stokes wave, Table 5.3 in Komar, 1998.
 L = 2*pi/k;
+% TODO: Santoss uses a different term2 in wave non-linearity
 term2 = (pi*Hs/L)^2 *(5. + 2.*cosh(4*pi*h/L) + 2.*(cosh(4.*pi*h/L))^2) /(8.*(sinh(2*pi*h/L))^4);
 C = (g/w)*tanh(kh)*(1.+ term2); % celerity
 xi = 1.7;     % I think...from santoss_core.m
 alphar = 8.2; % calibration term alpha - A13, Section 2.5
-Pc = alphar*(1-xi*uhatc/C)*zws/(wsc*2*Tcu);
-Pt = alphar*(1+xi*uhatt/C)*zws/(wst*2*Ttu);
+% TODO - Should this be Tc-Tcu and Tt-Ttu?
+% next lines are corrected to match A13 eqns. 27 - 28 crs 3/19/2018
+Pc = alphar*(1-xi*uhatc)/C)*zws/(wsc*2*(Tc-Tcu));
+Pt = alphar*(1+xi*uhatt)/C)*zws/(wst*2*(Tt-Ttu));
 %% Compute flux magnitudes
 % m and n are key calibration parameters...A13, bottom of section 2.5
 m = 11.0;
 n = 1.2;
+% TODO - Sc is affected by A13 Eqn. 35
 Oc = m*max(Sc-theta_crit,0.)^n; % A13, Eqn 2.
 if(Pc<=1.) % A13 Eqn 23, 24
    Occ = Oc;

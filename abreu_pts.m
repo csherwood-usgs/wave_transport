@@ -86,11 +86,15 @@ Fo = (r<=.5) * (1.-0.27*(2.*r)^2.1) + ...
 % MD Eqn. 15b
 Br0 =(r< 0.5)* (0.5*(1+r)) + ...
      (r>=0.5)* ( 4.*r*(1.+r)/(4.*r*(1.+r)+1.) );
-Beta = 0.5+(Br0-0.5)*sin(0.5*pi-abs(phi))*Fo/sin(0.5*pi*Fo);
+ 
+% next eqn. corrected to match Malarkey/Davies(2012) Eqn 18 CRS 3/19/2018 
+Beta = 0.5+(Br0-0.5)*sin((0.5*pi-abs(phi))*Fo)/sin(0.5*pi*Fo);
   
 % Calculate assymetry parameters Sk and As (same as van Rijn et al. 2011 Eqn. 2)
-Sk =  3.*b*sin(phi)/sqrt(2.*(1.+b^2))^3;
-As = -3.*b*cos(phi)/sqrt(2.*(1.+b^2))^3;
+% next two eqns. corrected to match Malarkey/Davis(2012) Table 1. CRS
+% 3/19/2018
+Sk =  3.*b*sin(phi)/sqrt(2.*(1.+b^2)^3);
+As = -3.*b*cos(phi)/sqrt(2.*(1.+b^2)^3);
 
 % Could also use MD Appendix C to calculate uspike, aspike, and other
 % measures of assymetry
