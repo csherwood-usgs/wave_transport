@@ -1,3 +1,6 @@
+% vandera.m - Script to check asymmetric wave calcs
+% This is based on vandera.F, the prototype code intended for ROMS, as of
+% March 21, 2018
 
 % MODULE mod_scalars
 % note that these are not common to functions, so make sure same values are
@@ -10,7 +13,10 @@ nu = 1.36E-6  ;       % kinematic viscosity m2 s-1
 deg2rad = pi / 180.0;
 rad2deg = 180.0 / pi;
 % END MODULE mod_scalars
-
+% This coefficient modulates the progressive wave stress tauwRe
+% Santoss includes this, and discusses values of 0.55 or zero.
+% Using 1 matches equations in VA2013.
+eps_eff = 1.
 %
 %      Input wave parameters
 %      Hs=significant wave height
@@ -27,8 +33,10 @@ rhos= 2650.0
 % umag_curr is the current velocity magnitude (MAKE Sure its the magnitude)
 % direction of currents is counter-clockwise from wave direction
 %
-umag_curr=abs(0.5)
-phi_curwave=45.0*deg2rad
+umag_curr=abs(0.2)
+%phi_curwave=45.0*deg2rad
+phi_curwave=0.0*deg2rad
+
 
 %
 % uhat and ahat for the entire wave cycle  uhat is the wave orbital velocity defiend for the entire wave cycle
@@ -79,7 +87,11 @@ af_CRS = abreu_pts(r, phi, uhat, Td) % This agrees
 %
 % from Abreu points
 uhat_c=umax;
-uhat_t=-umin;
+% CRS - we flipped this sign
+% uhat_t=-umin;
+% I think that is wrong...we want uhat_t to be negative
+uhat_t=umin;
+
 %
 %-----------------------------------------------------------------------
 % VA2013 Equation 10, 11
@@ -102,24 +114,26 @@ fprintf(1,'crest vel. %f, %f\n',uc_rx, uc_ry)
 %-----------------------------------------------------------------------
 %
 % VA2013 Eqn 13
-ut_rx=-ut_r+umag_curr*cos(phi_curwave)
+% TODO CRS - this had a minus sign to make ut_ry negative
+% ut_rx=-ut_r+umag_curr*cos(phi_curwave)
+ut_rx=ut_r+umag_curr*cos(phi_curwave)
 ut_ry=umag_curr*sin(phi_curwave)
 mag_ut=sqrt(ut_rx*ut_rx+ut_ry*ut_ry)
 fprintf(1,'trough vel. %f, %f\n', ut_rx, ut_ry)
 %
 % This should agree with af_CRS.R 
 Rcheck = uhat_c/(uhat_c+uhat_t)
-af_CRS.R % This agrees
+% af_CRS.R % This agrees
 
-%%
+%
 %-----------------------------------------------------------------------
 % 2. Bed shear stress (Shields parameter) for Crest half cycle
 %    alpha VA2013 Eqn. 19
 %-----------------------------------------------------------------------
 % TSK    smgd=(Srho(ised,ng)/rho0-1.0)*g*sd50(ised,ng)
 %
-smgd=(rhos/rho0-1.0)*g*d50
-osmgd=1.0/smgd
+smgd=(rhos/rho0-1.0)*g*d50;
+osmgd=1.0/smgd;
 %
 % TSK- Think about are multiple sediments
 %
@@ -127,16 +141,18 @@ osmgd=1.0/smgd
     stress_progressive_surface_waves(d50, d90, osmgd,...
     Td, depth,...
     umag_curr, uhat, uhat_c, ahat, ...
-    T_cu, T_c, mag_uc)
+    T_cu, T_c, mag_uc);
 %
 %-----------------------------------------------------------------------
-% Shields parameter in crest cycle
+% Shields parameter in crest cycle VA2013 Eqn 15
 % rho0 is required for non-dimensionalizing
 %-----------------------------------------------------------------------
 %
-theta_cx=abs(mag_theta_c)*uc_rx/(mag_uc)+tau_wRe_c*osmgd/rho0
-theta_cy=abs(mag_theta_c)*uc_ry/(mag_uc)
-mag_theta_c=sqrt(theta_cx*theta_cx+theta_cy*theta_cy)
+theta_cx=abs(mag_theta_c)*uc_rx/(mag_uc)+eps_eff*tau_wRe_c*osmgd/rho0;
+theta_cy=abs(mag_theta_c)*uc_ry/(mag_uc);
+mag_theta_c=sqrt(theta_cx*theta_cx+theta_cy*theta_cy);
+fprintf(1,'|theta_c|,theta_cx, theta_cy, theta_cprog: %f %f %f %f\n',...
+    mag_theta_c, theta_cx, theta_cy, eps_eff*tau_wRe_c*osmgd/rho0 )
 
 %
 %-----------------------------------------------------------------------
@@ -148,17 +164,26 @@ mag_theta_c=sqrt(theta_cx*theta_cx+theta_cy*theta_cy)
     stress_progressive_surface_waves(d50, d90, osmgd,         ...
     Td, depth,                ...
     umag_curr, uhat, uhat_t, ahat, ...
-    T_tu, T_t, mag_ut)
+    T_tu, T_t, mag_ut);
 %
 %-----------------------------------------------------------------------
-% Shields parameter in trough cycle
+% Shields parameter in trough cycle VA2013 Eqn 15
 % rho0 is required for non-dimensionalizing
 %-----------------------------------------------------------------------
 %
-theta_tx=abs(mag_theta_t)*ut_rx/(mag_ut)+tau_wRe_t*osmgd/rho0
-theta_ty=abs(mag_theta_t)*ut_ry/(mag_ut)
-mag_theta_t=sqrt(theta_tx*theta_tx+theta_ty*theta_ty)
-%
+% CRS - I think the tau_wRe term should be added to a negative stress in
+% the trough...changed some signs above to propagate a negative ut here.
+% CRS - I think the current roughness and stress should be for the whole
+% wave cycle, not divided into crest/trough components
+% CRS - Santoss has a coefficient in front of the progressive wave
+% streaming term eps_eff, and might use a value of 0.55...or zero to negate
+% the term
+theta_tx=abs(mag_theta_t)*ut_rx/(mag_ut)+eps_eff*tau_wRe_t*osmgd/rho0;
+theta_ty=abs(mag_theta_t)*ut_ry/(mag_ut);
+mag_theta_t=sqrt(theta_tx*theta_tx+theta_ty*theta_ty);
+fprintf(1,'|theta_t|,theta_tx, theta_ty, theta_tprog: %f %f %f %f\n',...
+    mag_theta_t, theta_tx, theta_ty, eps_eff*tau_wRe_t*osmgd/rho0 )
+%%
 %-----------------------------------------------------------------------
 % 3. Compute sediment load entrained during each crest half cycle
 %-----------------------------------------------------------------------
@@ -263,16 +288,23 @@ cff1_dsf=(1.0/(2.0*(T_i-T_iu)*w_sc_dsf));
 %
 % For ripple regime
 %
-if(eta>0.0)
+% TODO: this can be made a little more robust
+% if(eta>0.0)
+%     P=alpha*eta*cff*cff1_eta;
+% elseif(eta==0.0)
+%     %
+%     % For sheet flow regime
+%     %
+%     P=alpha*dsf*cff*cff1_dsf;
+% end
+% CRS like this:
+P=alpha*dsf*cff*cff1_dsf;
+if(eta>d50)
     P=alpha*eta*cff*cff1_eta;
-elseif(eta==0.0)
-    %
-    % For sheet flow regime
-    %
-    P=alpha*dsf*cff*cff1_dsf;
 end
-%
-eps_eff=(dsf/d50)^0.25;
+
+% TODO CRS - this is not the same eps_eff that I put into the main routine
+eps_eff=(dsf/d50)^0.25; 
 theta_ieff=eps_eff*mag_theta_i;
 %
 % Find critical Shields parameters based on Soulsby (1997).
@@ -330,7 +362,8 @@ function [eta, dsf, mag_theta_i, tau_wRe] = ...
 % d50 -- grain size in meters
 % Different for crest and trough half cycles
 %
-total_iters=50;
+tol = 0.001;
+total_iters=10;
 rho0 = 1025.0;
 %
 % Iterative solution to obtain current and wave related bed roughness
@@ -338,18 +371,25 @@ rho0 = 1025.0;
 % Bed roughness computed from converged Shields parameter
 %
 % maximum mobility number at crest and trough
-% For irregular waves, use Rayleigh distributed maximum value
+% For irregular waves, use Rayleigh distributed u(1/10) value
 % VA, text under equation Appendix B.4
 %
+% smgd=(rhos/rho0-1.0)*g*d50
+% osmgd=1.0/smgd
 psi=(1.27*uhat)^2*osmgd;
 %
 % Use Appendix B eqn B.1 and B.2 to get ripple height and length
 %
-[eta, lambda] = ripple_dim(psi, d50)
+[eta, lambda] = ripple_dim(psi, d50);
+% These agree:
+[eta_CRS, lambda_CRS]=od_ripple(d50, psi);
+checkvals('eta',eta,eta_CRS);
+checkvals('lambda',lambda,lambda_CRS);
 %
 eta=eta*ahat;
 lambda=lambda*ahat;
 
+% VA2013 Eqn. 19:
 alpha=umag_curr/(umag_curr+uhat);
 %
 % Initiliaze with theta_timeavg=0 and theta_hat_i=theta_timeavg
@@ -362,6 +402,9 @@ for iter=1:total_iters
     % Sheet flow thickness VA2013 Appendix C C.1
     %
     dsf=dsf_calc(d50, theta_hat_i); %this dsf is in m
+%     % These agree
+    dsf_CRS = dsf_func(d50, theta_hat_i);
+    checkvals('dsf',dsf, dsf_CRS)
     %
     % Calculate current-related bed roughness from VA2013 Appendix A.1
     %
@@ -370,39 +413,50 @@ for iter=1:total_iters
     % Calculate full-cycle current friction factor from VA2013 Eqn. 20
     %
     fd=fd_calc(dsf, ksd);
+    fd_CRS = fd_func(dsf, ksd);
+    checkvals('fd',fd, fd_CRS);
     %
     % Calculate wave related bed roughness from VA2013 A.5
     %
     ksw=ksw_calc(d50, mu_calc(d50), theta_timeavg, eta, lambda);
+    ksw_CRS = ksw_func(d50, eta, lambda, theta_timeavg);
+    checkvals('ksw',ksw, ksw_CRS);
     %
     % Calculate full-cycle wave friction factor VA2013 Appendix Eqn. A.4
     %
     fw=fw_calc(ahat, ksw);
+    fw_CRS = fw_func(ahat, ksw);
+    checkvals('fw',fw, fw_CRS);
     %
     %
     % Calculate Time-averaged absolute Shields stress VA2013 Appendix Eq. A.3
     %
     theta_timeavg=osmgd*(0.5*fd*umag_curr^2.0+...
-        0.25*fw*uhat^2.0)
+        0.25*fw*uhat^2.0);
     %
     % Wave friction factor for wave and crest half cycle VA2013 Eqn. 21
     %
-    fw_i=fwi_calc(T_iu, T_i, ahat, ksw)
+    fw_i=fwi_calc(T_iu, T_i, ahat, ksw);
     %
     % Wave current friction factor (Madsen and Grant) VA2013 Eqn. 18
     % Different for crest and trough
     %
-    fwd_i=alpha*fd+(1.0-alpha)*fw_i
+    fwd_i=alpha*fd+(1.0-alpha)*fw_i;
     %
     % Update theta_hat_i based on crest/trough amplitude uhat Eqn. C.2
     %
-    theta_hat_i=0.5*fwd_i*uhat_i^2*osmgd
+    theta_hat_i=0.5*fwd_i*uhat_i^2*osmgd;
     %
-    if(abs(theta_timeavg-theta_timeavg_old) < 0.001)
+    fprintf(1,'%d %f %f %f %f %f\n',iter,dsf,fd,fw,theta_timeavg,theta_hat_i)
+    if(abs(theta_timeavg-theta_timeavg_old) < tol)
         break
     end
-    theta_timeavg_old=theta_timeavg
+    if((abs(theta_timeavg-theta_timeavg_old) >= tol)&&(iter==total_iters))
+        fprintf(1,'Warning...stress calcs did not converge.\n')
+    end
+    theta_timeavg_old=theta_timeavg;
 end
+
 %
 % Recompute sheet flow thickness to use converged values of theta_timeavg
 % and theta_hat_i
@@ -410,49 +464,49 @@ end
 % Sheet flow thickness VA2013 Appendix C C.1
 % Update from initial value
 %
-dsf=dsf_calc(d50, theta_hat_i) %this dsf is in m
+dsf=dsf_calc(d50, theta_hat_i); %this dsf is in m
 %
 % Calculate current-related bed roughness from VA2013 Appendix A.1
 %
-ksd=ksd_calc(d50, d90, mu_calc(d50), theta_timeavg, eta, lambda)
+ksd=ksd_calc(d50, d90, mu_calc(d50), theta_timeavg, eta, lambda);
 %
 % Calculate full-cycle current friction factor from VA2013 Eqn. 20
 %
-fd=fd_calc(dsf, ksd)
+fd=fd_calc(dsf, ksd);
 %
 % Calculate wave related bed roughness from VA2013 A.5
 %
-ksw=ksw_calc(d50, mu_calc(d50), theta_timeavg, eta, lambda)
+ksw=ksw_calc(d50, mu_calc(d50), theta_timeavg, eta, lambda);
 %
 % Calculate full-cycle wave friction factor VA2013 Appendix Eqn. A.4
 %
-fw=fw_calc(ahat, ksw)
+fw=fw_calc(ahat, ksw);
 %
 % Calculate wave Reynolds stress from full cycle wave and friction factor
 % that were formed from the iterative cycle, VA2013, Eqn.22
 %
-fwd=alpha*fd+(1.0-alpha)*fw
+fwd=alpha*fd+(1.0-alpha)*fw;
 %
-k=kh_calc(Td,depth)/depth     % Wave number
-c_w=2*pi/(k*Td)          % Wave speed
-alpha_w=0.424
+k=kh_calc(Td,depth)/depth;     % Wave number
+c_w=2*pi/(k*Td);               % Wave speed
+alpha_w=0.424;
 %
-tau_wRe=rho0*fwd*alpha_w*uhat^3.0/(2.0*c_w)
+tau_wRe=rho0*fwd*alpha_w*uhat^3.0/(2.0*c_w);
 fprintf(1,'------------------------------\n')
 fprintf(1,'tau_wRe %f\n',tau_wRe)
 %
 % Wave friction factor for wave and crest half cycle VA2013 Eqn. 21
 %
-fw_i=fwi_calc(T_iu, T_i, ahat, ksw)
+fw_i=fwi_calc(T_iu, T_i, ahat, ksw);
 %
 % Wave current friction factor (Madsen and Grant) VA2013 Eqn. 18
 % Different for crest and trough
 %
-fwd_i=alpha*fd+(1.0-alpha)*fw_i
+fwd_i=alpha*fd+(1.0-alpha)*fw_i;
 %
 % VA2013-Magnitude of Shields parameter Eqn. 17
 %
-mag_theta_i=0.5*fwd_i*mag_ui^2*osmgd
+mag_theta_i=0.5*fwd_i*mag_ui^2*osmgd;
 end % function stress_progressive_surface_waves
 
 %% ripple_dim
@@ -465,7 +519,7 @@ d50_mm=0.001*d50;
 if(d50_mm<0.22)
     m_eta=0.55;
     m_lambda=0.73;
-elseif(d50_mm>0.22 & d50_mm<0.30)
+elseif(d50_mm>0.22 && d50_mm<0.30)
     m_eta=0.55+(0.45*(d50_mm-0.22)/(0.30-0.22));
     m_lambda=0.73+(0.27*(d50_mm-0.22)/(0.30-0.22));
 else
@@ -477,7 +531,7 @@ end
 %
 if(psi<=190.0)
     n_eta=1.0;
-elseif(psi>190.0 & psi<240.0)
+elseif(psi>190.0 && psi<240.0)
     n_eta=0.5*(1.0+cos(pi*(psi-190.0)/(50.0)));
 elseif(psi >= 240.0)
     n_eta=0.0;
@@ -534,14 +588,14 @@ function mu = mu_calc(d50)
 % Calculate bed roughness factor based on grain size
 % VA2013 Appendix A., required for current related bed roughness
 % and wave related bed roughness.
-d50_mm=d50*0.001
+d50_mm=d50*0.001;
 %
 if(d50_mm<=0.15)
-    mu=6.0
-elseif(d50_mm>0.15 & d50_mm<0.20)
-    mu=6.0-5.0*((d50_mm-0.15)/(0.2-0.15))
+    mu=6.0;
+elseif(d50_mm>0.15 && d50_mm<0.20)
+    mu=6.0-5.0*((d50_mm-0.15)/(0.2-0.15));
 elseif(d50_mm>0.20)
-    mu=1.0
+    mu=1.0;
 end
 return
 end % function mu_calc
@@ -845,3 +899,12 @@ kh=y;
 %
 return
 end % function kh_calc
+
+%% checkvals
+function checkvals(name, val1, val2, tol)
+if (exist('tol')~=1),tol = 1e-4; end
+if( abs(val1-val2)>tol)
+    fprintf('WARNING: Diff. values for %s: %f %f\n',name,val1,val2);
+end
+return
+end
