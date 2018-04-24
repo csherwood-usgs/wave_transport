@@ -5,6 +5,15 @@ function wtout = wave_transport_func( wtin )
 % RRvR = Ruessink, Ramaekers, and van Rijn (2012), Coastal Eng. 65:56-63
 % A13  = van der A et al., (2013), Coastal Eng. 76:26-42.
 %
+%   Input:
+%      structure wtin
+%      .Hs
+%      .Td
+%      .h
+%      .ubot - These values will override calculated ubot and Tbot
+%      .Tbot - and be used for uhat and T
+%      .d
+
 % Calls:
 %   fw_func
 %   fd_func
@@ -14,7 +23,8 @@ function wtout = wave_transport_func( wtin )
 %   od_ripple
 %
 % csherwood@usgs.gov
-% 13 July 2015
+% 24 April 2018
+
 % Input:
 %   Hs - sig. wave height (m)
 %   Td - dom. wave period (s)
@@ -48,8 +58,18 @@ ws = p.ws;
 
 % TODO - Should this be calculated from Hs?
 [uhat,Tbav]=ubspecfun(Hs,Td,h);
+
+% If SWAN output is available, use Ubot and Tmbot
+% put values in 
+if(exist(wtin.Ubot)), uhat = wtin.ubot; end
+if(exist(wtin.Tmbot))
+    T = wtin.Tmbot;
+else
+    T = Td;
+end
+
 % according to A13, Section 4, urms = uhat/sqrt(2)
-ahat = uhat*Td/(2.*pi);
+ahat = uhat*T/(2.*pi);
 
 % Current speed and direction
 mag_u_d = wtin.mag_u_d;

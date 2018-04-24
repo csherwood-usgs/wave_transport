@@ -50,10 +50,6 @@ kh_CRS = qkhfs( 2*pi/Td, depth);
 k_CRS = kh_CRS/depth;
 %
 c_w=2*pi/(k*Td) ;         % Wave speed
-%
-% Do loops to be added later for COAWST
-%        DO j=Jstrm1,Jendp1
-%          DO i=Istrm1,Iendp1
 
 % VA-2013 equation 1 is solved in 3 sub-steps
 %
@@ -192,23 +188,23 @@ fprintf(1,'|theta_t|,theta_tx, theta_ty, theta_tprog: %f %f %f %f\n',...
 %      Crest half cycle
 %-----------------------------------------------------------------------
 %
-wavecycle=1.0
+wavecycle=1.0;
 [ om_cc, om_ct ]= sandload_vandera(wavecycle,...
     Hs, Td,  depth, RR,                 ...
     d50, rhos, c_w,                     ...
     eta_c, dsf_c,                           ...
-    T_c, T_cu, uhat_c, mag_theta_c)
+    T_c, T_cu, uhat_c, mag_theta_c);
 %
 %-----------------------------------------------------------------------
 %       Trough half cycle
 %-----------------------------------------------------------------------
 %
-wavecycle=-1.0
+wavecycle=-1.0;
 [om_tt, om_tc] = sandload_vandera(wavecycle,...
     Hs, Td,  depth, RR,                 ...
     d50, rhos, c_w,                     ...
     eta_t, dsf_t,                           ...
-    T_t, T_tu, uhat_t, mag_theta_t)
+    T_t, T_tu, uhat_t, mag_theta_t);
 
 %
 %-----------------------------------------------------------------------
@@ -216,32 +212,32 @@ wavecycle=-1.0
 % Non-dimensional net transport rate
 %-----------------------------------------------------------------------
 %
-smgd_3=sqrt((rhos/rho0-1.0)*g*d50.^3.0)
+smgd_3=sqrt((rhos/rho0-1.0)*g*d50.^3.0);
 %
-cff1=0.5*T_c/(T_cu)
-cff2=sqrt(mag_theta_c)*T_c*(om_cc+cff1*om_tc)
+cff1=0.5*T_c/(T_cu);
+cff2=sqrt(mag_theta_c)*T_c*(om_cc+cff1*om_tc);
 %
-cff3=theta_cx/mag_theta_c
-bedld_cx=cff2*cff3
+cff3=theta_cx/mag_theta_c;
+bedld_cx=cff2*cff3;
 %
-cff3=theta_cy/mag_theta_c
-bedld_cy=cff2*cff3
+cff3=theta_cy/mag_theta_c;
+bedld_cy=cff2*cff3;
 
-cff1=0.5*T_t/(T_tu)
-cff2=sqrt(mag_theta_t)*T_t*(om_tt+cff1*om_ct)
+cff1=0.5*T_t/(T_tu);
+cff2=sqrt(mag_theta_t)*T_t*(om_tt+cff1*om_ct);
 
-cff3=theta_tx/mag_theta_t
-bedld_tx=cff2*cff3
+cff3=theta_tx/mag_theta_t;
+bedld_tx=cff2*cff3;
 %
-cff3=theta_ty/mag_theta_t
-bedld_ty=cff2*cff3
+cff3=theta_ty/mag_theta_t;
+bedld_ty=cff2*cff3;
 %
 % The units of these are m2 sec-1
 % bed_frac, rhos multiplied
 %
-bed_frac=1.0
-bedld_x=bed_frac*rhos*smgd_3*(bedld_cx+bedld_tx)/Td
-bedld_y=bed_frac*rhos*smgd_3*(bedld_cy+bedld_ty)/Td
+bed_frac=1.0;
+bedld_x=bed_frac*rhos*smgd_3*(bedld_cx+bedld_tx)/Td;
+bedld_y=bed_frac*rhos*smgd_3*(bedld_cy+bedld_ty)/Td;
 
 
 %% sandload_vanderaa
@@ -272,10 +268,15 @@ if(wavecycle==1.0)
 end
 %
 % VA2013 Equation 30, for trough cycle
+% Upward orbital velocity decreases ws.
+% VA2013 allows this to go to zero. I think that is ok, but Taran put a
+% limit on it at 0.36*ws, citing
+% Note that VA2013 uses 0.8*D50 for suspended sediment...we are not doing
+% that
 %
 if(wavecycle==-1.0)
-    w_sc_eta=max(w_s-ws_eta,0.0);
-    w_sc_dsf=max(w_s-ws_dsf,0.0);
+    w_sc_eta=max(w_s-ws_eta,0.36*w_s);
+    w_sc_dsf=max(w_s-ws_dsf,0.36*w_s);
 end
 %
 % VA2013 Equation 33, Phase lag parameter
@@ -313,14 +314,15 @@ theta_cr=theta_cr_calc(d50, rhos);
 %
 % Sand load entrained in the flow during each half-cycle
 %
-om_i=max(m*(theta_ieff-theta_cr)^n,0.0);
+om_i=max( (theta_ieff-theta_cr), 0.0);
+om_i=m*(theta_ieff-theta_cr)^n;
 %
 % VA2013 Equation 23-26, Sandload entrained during half cycle
 %
 if(P<=1.0)
     om_ii=om_i;
     om_iy=0.0;
-else;
+else
     om_ii=om_i/P;
     cff=1.0/P;
     om_iy=om_i*(1.0-cff);
@@ -782,19 +784,22 @@ b=r/(1.0+P);
 %
 c=b*sin(phi_new);
 %
-cff1=4.0*c*(b*b-c*c)+(1.0-b*b)*(1.0+b*b-2.0*c*c);
-cff2=(1.0+b*b)^2.0-4.0*c*c;
-tmc=asin(cff1/cff2);
-%
-cff1=4.0*c*(b*b-c*c)-(1.0-b*b)*(1.0+b*b-2.0*c*c);
-cff2=(1.0+b*b)^2.0-4.0*c*c;
-tmt=asin(cff1/cff2);
-%
-if(tmt<0.0)
-    tmt=tmt+2.0*pi;
+% Appendix E of Malarkey & Davies
+% Phase of umax (crest) and umin (trough) (in radians, from 0 to 2*pi)
+c = b*sin(phi);
+ratio_c = ((4.*c*(b*b-c*c)+(1.-b*b)*(1.+b*b-2.*c*c))/((1.+b*b).^2-4.*c*c));
+ratio_c = min(ratio_c,1.0);
+ratio_c = max(ratio_c,-1.0);
+tmc = asin(ratio_c);
+if(tmc<0.)
+   tmc = tmc+2*pi;
 end
-if(tmc<0.0)
-    tmc=tmc+2.0*pi;
+ratio_t = ((4.*c*(b*b-c*c)-(1.-b*b)*(1.+b*b-2.*c*c))/((1.+b*b).^2-4.*c*c));
+ratio_t = min(ratio_t,1.0);
+ratio_t = max(ratio_t,-1.0);
+tmt = asin(ratio_t);
+if(tmt<0.)
+   tmt = tmt+2.*pi;
 end
 %
 % Non dimensional umax and umin, under E5 in Malarkey and Davies
@@ -828,7 +833,7 @@ end
 %
 if(r >= 0.0 && r<0.5)
     betar_0=0.5*(1.0+r);
-elseif(r>0.5 && r<0.5)
+elseif(r>0.5 && r<1.0)
     cff1=4.0*r*(1.0+r);
     cff2=cff1+1.0;
     betar_0=cff1/cff2;
@@ -881,7 +886,7 @@ else
     y=x;
 end
 %
-% Iteratively solving 3 times for eqn.7 of Soulsby 1997 by using
+% Iterating three times to solve eqn.7 of Soulsby 1997 by using
 % eqns. (12a-14)
 %
 t=tanh(y);
@@ -891,7 +896,7 @@ y=y-cff;
 t=tanh(y);
 cff=(y*t-x)/(t+y*(1.0-t*t));
 y=y-cff;
-
+%
 t=tanh(y);
 cff=(y*t-x)/(t+y*(1.0-t*t));
 y=y-cff;

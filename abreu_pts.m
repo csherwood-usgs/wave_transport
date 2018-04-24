@@ -57,14 +57,21 @@ b = r/(1.+P);
 % Appendix E of Malarkey & Davies
 % Phase of umax (crest) and umin (trough) (in radians, from 0 to 2*pi)
 c = b*sin(phi);
-tmc = asin((4.*c*(b*b-c*c)+(1.-b*b)*(1.+b*b-2.*c*c))/((1.+b*b).^2-4.*c*c));
-tmt = asin((4.*c*(b*b-c*c)-(1.-b*b)*(1.+b*b-2.*c*c))/((1.+b*b).^2-4.*c*c));
-if(tmt<0.)
-   tmt = tmt+2.*pi;
-end
+ratio_c = ((4.*c*(b*b-c*c)+(1.-b*b)*(1.+b*b-2.*c*c))/((1.+b*b).^2-4.*c*c));
+ratio_c = min(ratio_c,1.0);
+ratio_c = max(ratio_c,-1.0);
+tmc = asin(ratio_c);
 if(tmc<0.)
    tmc = tmc+2*pi;
 end
+ratio_t = ((4.*c*(b*b-c*c)-(1.-b*b)*(1.+b*b-2.*c*c))/((1.+b*b).^2-4.*c*c));
+ratio_t = min(ratio_t,1.0);
+ratio_t = max(ratio_t,-1.0);
+tmt = asin(ratio_t);
+if(tmt<0.)
+   tmt = tmt+2.*pi;
+end
+
 
 % umax and umin - non dimensional
 umax = 1+c;
