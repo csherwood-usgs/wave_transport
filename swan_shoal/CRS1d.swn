@@ -1,0 +1,38 @@
+$*************HEADING****************************************
+$
+! PROJ 'CRS1D' '001'
+! Based on PROJ 'A21sho01' 'A21'
+$
+$ PURPOSE OF TEST: shoaling on sloping beach
+$
+$***********MODEL INPUT************************************
+$
+SET NAUTICAL
+MODE STATIONARY ONEDIMENSIONAL
+CGRID REGULAR 0. 0. 0. 16000 0 SECTOR 180. 0. 80 0.05 0.25 40
+$
+INPGRID BOTTOM REGULAR 0. 0. 0. 1 0 16000. 0.
+READINP BOTTOM 1. 'CRS1d.bot'  1 0 FREE
+$
+BOUND SHAPEPEC GAUSS 0.01 PEAK DSPR
+BOUNDSPEC SIDE W CCW CON PAR 1. 10. 270. 500.
+$
+SETUP
+FRICtion JONSwap CONStant 0.038
+OFF REFRAC
+OFF QUAD
+OFF BREA
+OFF WCAP
+$
+NUM ACCUR
+$
+$************ OUTPUT REQUESTS *************************
+$
+TABLE 'COMPGRID' NOHEAD 'CRS1D.dat' Dist Depth Hs  Tm01 Fspr Dir Dspr Qb Dissip Setup Ubot Tmbot
+$ 
+TABLE 'COMPGRID' HEAD 'CRS1D.tab' Dist Depth Hs  Tm01 Fspr Dir Dspr Qb Dissip Setup Ubot Tmbot
+
+$
+TEST 1,0
+COMPUTE STAT
+STOP
