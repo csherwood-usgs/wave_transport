@@ -9,7 +9,7 @@ rho0 = 1025.0;
 g = 9.81 ;            % m/s2
 vonKar = 0.41 ;       % non-dimensional
 nu = 1.36E-6  ;       % kinematic viscosity m2 s-1
-% pi = 3.14159265358979323846_r8 % use Matlab constant
+
 deg2rad = pi / 180.0;
 rad2deg = 180.0 / pi;
 % END MODULE mod_scalars
@@ -36,20 +36,24 @@ rhos= 2650.0
 umag_curr=abs(0.2)
 %phi_curwave=45.0*deg2rad
 phi_curwave=0.0*deg2rad
+zref = 1.
+zo = 0.02
 
+% in ROMS, we will us bustrc and bvstrc...here we are only interested in
+% the magnitude of the stress, buvstrc (note that this is u*c^2,
+% with units of m2/s2
+buvstrc=umag_curr*vonKar/(log(zref/zo))
 
-%
 % uhat and ahat for the entire wave cycle  uhat is the wave orbital velocity defiend for the entire wave cycle
-% TSK --. HARDWIRED for now but later needs to be based on a function for JONSWAP spectrum
+% TSK --. HARDWIRED for now but later needs to be based on a function for
+% JONSWAP spectrum, for example:
+% [uhat,T]=ubspecfun2(Hs, Td, depth)
 uhat=0.5472
 %
-ahat=uhat*Td/(2.0*pi)
-k=kh_calc(Td,depth)/depth     % Wave number
-% compare w/ CRS function
-kh_CRS = qkhfs( 2*pi/Td, depth);
-k_CRS = kh_CRS/depth;
-%
-c_w=2*pi/(k*Td) ;         % Wave speed
+ahat=uhat*T/(2.0*pi)
+kh = qkhfs( 2*pi/T, depth);
+k = kh/depth
+c_w=2*pi/(k*T);         % Wave speed
 
 % VA-2013 equation 1 is solved in 3 sub-steps
 %
@@ -59,7 +63,7 @@ c_w=2*pi/(k*Td) ;         % Wave speed
 % COMMON TO both crest and trough
 %-----------------------------------------------------------------------
 %
-[r, phi ] = skewness_params(Hs, Td, depth )
+[r, phi ] = skewness_params(Hs, T, depth )
 % Ursell number Ur
 Ur = 0.75*0.5*Hs*k_CRS./(kh_CRS.^3) % RRvR Eqn. 6.
 % compare with CRS function
@@ -71,8 +75,8 @@ rp_CRS = ruessink_asymm( Ur ); % This agrees
 %-----------------------------------------------------------------------
 %
 [T_c, T_t, T_cu, T_tu, umax, umin, RR] = ...
-    abreu_points(r, phi, uhat, Td)
-af_CRS = abreu_pts(r, phi, uhat, Td) % This agrees
+    abreu_points(r, phi, uhat, T)
+af_CRS = abreu_pts(r, phi, uhat, T) % This agrees
 %
 %-----------------------------------------------------------------------
 %           Crest half cycle
@@ -356,8 +360,8 @@ end % function w_sc_calc
 %% stress_progressive_surface_waves
 function [eta, dsf, mag_theta_i, tau_wRe] = ...
     stress_progressive_surface_waves(d50, d90, osmgd,...
-    Td, depth,...
-    umag_curr, uhat, uhat_i, ahat,...
+    T, depth,...
+    buvstrc, uhat, uhat_i, ahat,...
     T_iu, T_i, mag_ui )
 %
 % Input the crest or trough half cycle velocity
@@ -394,10 +398,10 @@ lambda=lambda*ahat;
 % VA2013 Eqn. 19:
 alpha=umag_curr/(umag_curr+uhat);
 %
-% Initiliaze with theta_timeavg=0 and theta_hat_i=theta_timeavg
+% Initiliaze with mean current bottom stress
 %
-theta_timeavg=0.0;
-theta_timeavg_old=0.0;
+theta_timeavg=buvstrc*rho0*osmgd;
+theta_timeavg_old=0.;
 theta_hat_i=theta_timeavg;
 for iter=1:total_iters
     %
@@ -433,7 +437,9 @@ for iter=1:total_iters
     %
     % Calculate Time-averaged absolute Shields stress VA2013 Appendix Eq. A.3
     %
-    theta_timeavg=osmgd*(0.5*fd*umag_curr^2.0+...
+%     theta_timeavg=osmgd*(0.5*fd*umag_curr^2.0+...
+%         0.25*fw*uhat^2.0);
+    theta_timeavg=osmgd*(rho0*buvstrc+...
         0.25*fw*uhat^2.0);
     %
     % Wave friction factor for wave and crest half cycle VA2013 Eqn. 21
@@ -489,8 +495,8 @@ fw=fw_calc(ahat, ksw);
 %
 fwd=alpha*fd+(1.0-alpha)*fw;
 %
-k=kh_calc(Td,depth)/depth;     % Wave number
-c_w=2*pi/(k*Td);               % Wave speed
+k=kh_calc(T,depth)/depth;     % Wave number
+c_w=2*pi/(k*T);               % Wave speed
 alpha_w=0.424;
 %
 tau_wRe=rho0*fwd*alpha_w*uhat^3.0/(2.0*c_w);

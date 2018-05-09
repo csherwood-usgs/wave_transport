@@ -1,4 +1,15 @@
-function wtout = wave_transport_func( wtin )
+% function wtout = wave_transport_func( wtin )
+wtin.Hs =2;
+wtin.Td = 10.;
+wtin.h = 10.;
+wtin.ur = 0.2;
+wtin.zr = 1;
+wtin.zo = 0.005;
+[uhat,Tbav]=ubspecfun(wtin.Hs,wtin.Td,wtin.h);
+wtin.Uwave_rms = uhat/sqrt(2);
+wtin.Pwave_bot = Tbav;
+wtin.d = 0.002;
+
 % Compute wave transport under asymmetrical waves
 %
 % References:
@@ -10,9 +21,18 @@ function wtout = wave_transport_func( wtin )
 %      .Hs
 %      .Td
 %      .h
-%      .ubot - These values will override calculated ubot and Tbot
-%      .Tbot - and be used for uhat and T
-%      .d
+%    These values will override calculated ubot and Tbot
+%    and be used for uhat and T:
+%      .Uwave_rms - SWAN bottom wave orbital velocity (m/s)
+%      .Pwave_bot - SWAN bottom wave period (s)
+%    Must supply either buvstrc or ur
+%      .buvstrc - kinematic bottom stress u*^2 (m2/s2)
+%      .ur - velocity at reference height (m)
+%    Default values if not supplied
+%      .zr - reference height (m) (default = 1 m)
+%      .zo - roughness length (m) (defualt = 0.005 m)
+%      .phicw   - current direction wrt wave propagation direction
+%      .d - grain size (m)
 
 % Calls:
 %   fw_func
@@ -23,57 +43,76 @@ function wtout = wave_transport_func( wtin )
 %   od_ripple
 %
 % csherwood@usgs.gov
-% 24 April 2018
+% 9 May 2018
 
-% Input:
-%   Hs - sig. wave height (m)
-%   Td - dom. wave period (s)
-%    h - water depth (m)
-Hs = wtin.Hs;
-Td = wtin.Td;
-h =  wtin.h;
-if(length(wtin.d)==1)
-d50 = wtin.d;
-d90 = 1.5*d50; % check this...van Rijn has an eqn.
-else
-   % TODO - treat multiple size classes
-   error('single grain size only')
-end
 % constants
 dtr = pi/180.; % degrees to radians
 g = 9.81;
 vk = 0.41;
-rhow = 1027.;
+rhow = 1025.;
 rhos = 2650.;
 nu = 1.36e-6;
+
+Hs = wtin.Hs;
+Td = wtin.Td;
+h =  wtin.h;
+
+% If SWAN output is available, use that
+if(isfield(wtin,'Uwave_rms') & isfield(wtin,'Pwave_bot' ))
+    uhat = sqrt(2.)*wtin.Uwave_rms
+    T = wtin.Pwave_bot;
+else
+   disp('Calculating bottom waves')
+    % calculate uhat and T if not given
+    [uhat,Tbav]=ubspecfun(Hs,Td,h);
+end
+
+if(~isfield(wtin,'zr'))
+    zr = 1.
+else
+    zr = wtin.zr
+end
+
+if(~isfield(wtin,'zo'))
+    zo = 0.005
+else
+    zo = wtin.zo
+end
+
+% calculate buvstrc if not given
+if(~isfield(wtin,'buvstrc'))
+    ur = wtin.ur
+    buvstrc = ur*vk/(log(zr/zo))
+elseif(~isfield(wtin,'ur'))
+    buvstrc = wtin.buvstrc
+    ur = (buvstrc/vk)*log(zr/zo)
+end
+
+if(length(wtin.d)==1)
+    d50 = wtin.d;
+    d90 = 1.5*d50; % check this...van Rijn has an eqn.
+else
+   % TODO - treat multiple size classes
+   error('single grain size only')
+end
 
 % Sed properties - need tau_crit and ws
 % s = (rhos-rhow)/rhow after A13, Eqn. 1, but should be s = rhos/rhow
 % (Soulsby, 1997)
 s = rhos/rhow;
-p = soulsby_particle(d50,rhos,rhow,nu)
+p = soulsby_particle(d50,rhos,rhow,nu);
 theta_crit = p.Shields_crit;
 tau_crit = theta_crit * (g*(s-1.)*d50) % Soulsby Eqn 74 (inverse)
 ws = p.ws;
 
-% TODO - Should this be calculated from Hs?
-[uhat,Tbav]=ubspecfun(Hs,Td,h);
-
-% If SWAN output is available, use Ubot and Tmbot
-% put values in 
-if(exist(wtin.Ubot)), uhat = wtin.ubot; end
-if(exist(wtin.Tmbot))
-    T = wtin.Tmbot;
-else
-    T = Td;
-end
+%%
 
 % according to A13, Section 4, urms = uhat/sqrt(2)
 ahat = uhat*T/(2.*pi);
 
 % Current speed and direction
-mag_u_d = wtin.mag_u_d;
-dir_u_d = wtin.dir_u_d;  % direction of current, meas. CCW from wave direction (A13 Fig. 2)
+mag_u_d = ur;
+dir_u_d = phicw;  % direction of current, meas. CCW from wave direction (A13 Fig. 2)
 costhet = cos(pi*dir_u_d/180.);
 sinthet = sin(pi*dir_u_d/180.);
 
@@ -256,8 +295,8 @@ xi = 1.7;     % I think...from santoss_core.m
 alphar = 8.2; % calibration term alpha - A13, Section 2.5
 % TODO - Should this be Tc-Tcu and Tt-Ttu?
 % next lines are corrected to match A13 eqns. 27 - 28 crs 3/19/2018
-Pc = alphar*(1-xi*uhatc)/C)*zws/(wsc*2*(Tc-Tcu));
-Pt = alphar*(1+xi*uhatt)/C)*zws/(wst*2*(Tt-Ttu));
+Pc = alphar*((1-xi*uhatc)/C)*zws/(wsc*2*(Tc-Tcu));
+Pt = alphar*((1+xi*uhatt)/C)*zws/(wst*2*(Tt-Ttu));
 %% Compute flux magnitudes
 % m and n are key calibration parameters...A13, bottom of section 2.5
 m = 11.0;
