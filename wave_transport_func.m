@@ -3,6 +3,7 @@ wtin.Hs =2;
 wtin.Td = 10.;
 wtin.h = 10.;
 wtin.ur = 0.2;
+wtin.phicw = 70.
 wtin.zr = 1;
 wtin.zo = 0.005;
 [uhat,Tbav]=ubspecfun(wtin.Hs,wtin.Td,wtin.h);
@@ -66,7 +67,11 @@ else
     % calculate uhat and T if not given
     [uhat,Tbav]=ubspecfun(Hs,Td,h);
 end
-
+if(~isfield(wtin,'phicw'))
+    phicw = 0.
+else
+    phicw = wtin.phicw
+end
 if(~isfield(wtin,'zr'))
     zr = 1.
 else

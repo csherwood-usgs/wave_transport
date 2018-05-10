@@ -17,7 +17,7 @@ ub=zeros(length(hs),1); Hb=ub; Tbav=ub;
 % for i=1:length(tp),
 %     khd(i)=rtnewt((2*pi./tp(i)).^2*h./g);
 % end;
-khd=qkhf( 2*pi/tp, h );
+khd=qkhfs( 2*pi/tp, h );
 khd=khd(:);
 ubTd=(pi./tp).*hs./sinh(khd);
 
@@ -41,7 +41,7 @@ cfmat=[];
 for i=1:length(tp),
     ubT=zeros(1,nb);
     for k=1:nb,
-        kh(k)=qkhf( 2*pi/Tbin(k), h );
+        kh(k)=qkhfs( 2*pi/Tbin(k), h );
         %kh(k)=rtnewt((2*pi./Tbin(k)).^2.*h./g);
     end;
     iter=0; cf=2;
