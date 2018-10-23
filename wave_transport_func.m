@@ -1,7 +1,7 @@
 % function wtout = wave_transport_func( wtin )
 wtin.Hs =2;
 wtin.Td = 10.;
-wtin.h = 10.;
+wtin.h = 5.;
 wtin.ur = 0.2;
 wtin.phicw = 70.
 wtin.zr = 1;
@@ -45,7 +45,9 @@ wtin.d = 0.002;
 %
 % csherwood@usgs.gov
 % 9 May 2018
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 1) Set up input
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % constants
 dtr = pi/180.; % degrees to radians
 g = 9.81;
@@ -111,15 +113,23 @@ tau_crit = theta_crit * (g*(s-1.)*d50) % Soulsby Eqn 74 (inverse)
 ws = p.ws;
 
 %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Calculate asymmetry parameters and wave cycle components
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+
+
+
+
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Calculate current at top of wbl
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % according to A13, Section 4, urms = uhat/sqrt(2)
-ahat = uhat*T/(2.*pi);
 
-% Current speed and direction
-mag_u_d = ur;
-dir_u_d = phicw;  % direction of current, meas. CCW from wave direction (A13 Fig. 2)
-costhet = cos(pi*dir_u_d/180.);
-sinthet = sin(pi*dir_u_d/180.);
+% phicw direction of current, meas. CCW from wave direction (A13 Fig. 2)
+costhet = cos(pi*phicw/180.);
+sinthet = sin(pi*phicw/180.);
 
 % Max. mobility number (Appdx. B) for irregular waves...
 % but want to use max(crest, trough) later
@@ -128,7 +138,8 @@ Psi = (1.27*uhat)^2. / (g*(s-1.)*d50);
 rh = Hoa*ahat
 rl = Loa*ahat
 
-% Calculate wave-averaged stress and roughness.
+% Calculate wave-averaged stress and roughness, and current speed udel at
+% the top of the wbl del
 % Iteration is required because roughness varies with stress
 dsf = d50; % first guess: no sheet flow layer
 ksw = ksw_func( d50, rh, rl, 0. );
@@ -143,7 +154,10 @@ sf = 1./((s-1.)*g*d50);
 while (i<nit && (abs(acc)>tol) )
    fw = fw_func( ahat, ksw );
    fd = fd_func(  dsf, ksd );
-   mean_mag_theta = sf*(0.5*fd*mag_u_d^2. + 0.25*fw*uhat^2. );
+   ustarw = 0.5*fw*uhat^2
+   delw = 2.*vk*ustarw/omega
+   udel = (buvstrc/vk)*log(30*delw/ksd)
+   mean_mag_theta = sf*(0.5*fd*udel^2. + 0.25*fw*uhat^2. );
    acc = 2.*(tlast-mean_mag_theta)/(eps+tlast+mean_mag_theta);
    tlast = mean_mag_theta;
    fprintf(1,'%02d fd=%6.4f fw=%6.4f theta=%6.3f acc =%6.4f dsf=%6.4f ksw=%6.4f ksd=%6.4f\n',...
@@ -154,7 +168,7 @@ while (i<nit && (abs(acc)>tol) )
    i=i+1;
 end
 
-% wavenumber k
+%% wavenumber k
 w = 2.*pi/Td;    % angular wave frequency
 kh = qkhfs(w,h); %
 k = kh/h;        % wave number
@@ -193,8 +207,7 @@ end
 
 % Crest and trough "representative" velocities:
 % (coordinate system is aligned with wave direction; A13, Fig. 2)
-% TODO - check to make sure these orbital velocities are correct and don't
-% have to be made into "representative" by multiplying by, say, sqrt(2)
+
 uhatc =  af.umax;  % see text after A13 Eqn. 7
 uhatt = -af.umin;  % I think minus sign is needed to offset minus sign in Eqn. 13 below
 utildecr = 0.5*sqrt(2)*uhatc; % A13 Eqn. 10
