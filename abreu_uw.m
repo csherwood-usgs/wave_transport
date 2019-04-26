@@ -15,7 +15,7 @@ if(exist('n','var')~=1),n=50;,end;
 w = 2.*pi/T;
 wt = linspace(0,2.*pi,n)';
 % Abreu eqn., also MD12 eqns. 13 a,b
-f = sqrt( 1. - r^2 )
+f = sqrt( 1. - r^2 );
 numer = sin(wt) + ( r*sin(phi) ./ (1.+sqrt(1.-r.^2)) );
 denom = (1.-r*cos(wt+phi));
 ut = Uw*f*numer ./ denom;
@@ -23,7 +23,7 @@ numer2 = cos(wt)-r*cos(phi)-r.^2 ./ (1.+sqrt(1.-r.^2))*sin(phi)*sin(wt+phi);
 at = Uw*w*f*numer2 ./ denom.^2;
 t = wt/w;
 u = ut/Uw;
-a = at/(Uw*w;
+a = at/(Uw*w);
 if(iplot)
    % plot time series of velocity and acceleration
    h2=plot(t,a,'-r','linewidth',2);
