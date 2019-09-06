@@ -13,16 +13,7 @@
 %   od_ripple
 %
 % csherwood@usgs.gov
-% 9 July 2015
-% Input:
-%   Hs - sig. wave height (m)
-%   Td - dom. wave period (s)
-%    h - water depth (m)
-Hs = 0;
-Td = 10;
-h =  10;
-d50 = 0.15e-3;
-d90 = 1.5*d50; % check this...van Rijn has an eqn.
+% 4 Sept 2019
 
 % constants
 dtr = pi/180.; % degrees to radians
@@ -31,6 +22,14 @@ vk = 0.41;
 rhow = 1027.;
 rhos = 2650.;
 nu = 1.36e-6;
+
+Hs = 0;
+Td = 10;
+h =  10;
+d50 = 0.15e-3;
+d90 = 1.5*d50; % check this...van Rijn has an eqn.
+
+
 
 % Sed properties - need tau_crit and ws
 % s = (rhos-rhow)/rhow after A13, Eqn. 1, but should be s = rhos/rhow
@@ -108,7 +107,7 @@ phi = rp.phi;
 % This routine provides the values you need for the transport calcs:
 fprintf(1,'Points in velocity time series from Abreu: \n')
 af = abreu_pts(r, phi, uhat, Td );
-% key intervals during wave period...same notation at A13, Fig 1.
+% key intervals during wave period...same notation as A13, Fig 1.
 T = af.T
 Tc = af.DTc
 Tcu = af.DTcu
@@ -184,7 +183,7 @@ St = sf*(0.5*fd*mag_u_d^2. + 0.25*fwdt*mag_utr^2 );
 Stx = St*utrx/mag_utr + sf*tauwre/rhow; %A13 Eqn. 15 (see not above)
 Sty = St*utry/mag_utr;             %A13 Eqn. 16
 
-fprintf(1,'For comparision wiht A13 Fig. 3: \n')
+fprintf(1,'For comparison with A13 Fig. 3: \n')
 fprintf(1,'  ahat/ksw : %6.0f \n   Beta   : %4.1f\n',ahat/ksw,af.Beta)
 fprintf(1,'  Crest:  fwdc and Shields param: %f, %f\n',fwdc,Sc)
 fprintf(1,'  Trough: fwdt and Shields param: %f, %f\n',fwdt,St)
@@ -247,9 +246,11 @@ else
    Otc = (1.-1./Pt)*Ot;
 end
 % Non-dimensional fluxes from A13, Eqn. 1
-Phicx = sqrt(Sc)*Tc/T*(Occ+Tc/(2*Tcu)*Otc)*Scx/Sc
-Phicy = sqrt(Sc)*Tc/T*(Occ+Tc/(2*Tcu)*Otc)*Scy/Sc
-Phitx = sqrt(St)*Tt/T*(Ott+Tt/(2*Ttu)*Oct)*Stx/St
-Phity = sqrt(St)*Tt/T*(Ott+Tt/(2*Ttu)*Oct)*Sty/St
+Phicx = sqrt(Sc)*Tc/T*(Occ+Tc/(2*Tcu)*Otc)*Scx/Sc;
+Phicy = sqrt(Sc)*Tc/T*(Occ+Tc/(2*Tcu)*Otc)*Scy/Sc;
+Phitx = sqrt(St)*Tt/T*(Ott+Tt/(2*Ttu)*Oct)*Stx/St;
+Phity = sqrt(St)*Tt/T*(Ott+Tt/(2*Ttu)*Oct)*Sty/St;
+fprintf(1,'Phicx, Phicy, Phitx, Phity: %.3f, %.3f, %.3f, %.3f []\n',Phicx, Phicy, Phitx, Phity);
 % Multiply by sfd3 to get dimensional fluxes
 sfd3 = sqrt((s-1)*g*d50^3)
+fprintf(1,'Multiply by sfd3 to get dimentional fluxes: %f [?]\n',sfd3);
